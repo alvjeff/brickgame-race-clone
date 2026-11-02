@@ -1,23 +1,24 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
+const startScreen = document.getElementById('startScreen');
 
 // Configuração da Grade de Blocos (10 colunas x 20 linhas)
 const COLS = 10;
 const ROWS = 20;
 const BLOCK_SIZE = 20;
 
-// Variaveis de Estado do Jogo
-let playerTrack = 1; // Pista do jogador: 0 (Esquerda), 1 (Centro), 2 (Direita)
+// Estados do Jogo
+let gameState = 'START'; // 'START', 'PLAYING', 'GAMEOVER'
+let playerTrack = 1; 
 let score = 0;
-let gameOver = false;
 let obstacles = [];
 let frameCount = 0;
-let speed = 10; // Velocidade do jogo
+let speed = 10;
 
-// Posições X das 3 pistas na grade (em colunas)
+// Posições X das 3 pistas na grade
 const tracks = [1, 4, 7];
 
-// Matriz da forma do carrinho de blocos (3x4)
+// Formato do carrinho de blocos
 const carShape = [
     [0, 1, 0],
     [1, 1, 1],
@@ -25,25 +26,41 @@ const carShape = [
     [1, 0, 1]
 ];
 
+// Função para iniciar o jogo ao clicar no botão
+function startGame() {
+    gameState = 'PLAYING';
+    startScreen.style.display = 'none'; // Esconde a tela do menu
+    resetGame();
+    update();
+}
+
+// Reseta variáveis do jogo
+function resetGame() {
+    score = 0;
+    playerTrack = 1;
+    obstacles = [];
+    frameCount = 0;
+}
+
 // Desenha um único bloco estilo LCD
 function drawBlock(col, row, active = true) {
     const x = col * BLOCK_SIZE;
     const y = row * BLOCK_SIZE;
 
     if (active) {
-        ctx.fillStyle = '#1e2612'; // Bloco aceso (Preto/Verde escuro)
+        ctx.fillStyle = '#1e2612';
         ctx.fillRect(x + 1, y + 1, BLOCK_SIZE - 2, BLOCK_SIZE - 2);
-        ctx.fillStyle = '#8b956d'; // Sombra interna do bloco
+        ctx.fillStyle = '#8b956d';
         ctx.fillRect(x + 4, y + 4, BLOCK_SIZE - 8, BLOCK_SIZE - 8);
         ctx.fillStyle = '#1e2612';
         ctx.fillRect(x + 6, y + 6, BLOCK_SIZE - 12, BLOCK_SIZE - 12);
     } else {
-        ctx.strokeStyle = 'rgba(30, 38, 18, 0.08)'; // Grade apagada de fundo
+        ctx.strokeStyle = 'rgba(30, 38, 18, 0.08)';
         ctx.strokeRect(x + 1, y + 1, BLOCK_SIZE - 2, BLOCK_SIZE - 2);
     }
 }
 
-// Desenha o fundo da grade
+// Desenha a grade
 function drawGrid() {
     for (let r = 0; r < ROWS; r++) {
         for (let c = 0; c < COLS; c++) {
@@ -51,7 +68,6 @@ function drawGrid() {
         }
     }
     
-    // Desenha as bordas animadas da pista
     for (let r = 0; r < ROWS; r++) {
         if ((r + frameCount) % 4 < 2) {
             drawBlock(0, r, true);
@@ -60,7 +76,7 @@ function drawGrid() {
     }
 }
 
-// Desenha um carrinho na tela
+// Desenha o carrinho
 function drawCar(colStart, rowStart) {
     for (let r = 0; r < 4; r++) {
         for (let c = 0; c < 3; c++) {
@@ -76,7 +92,7 @@ function drawCar(colStart, rowStart) {
 
 // Controles do Teclado
 document.addEventListener('keydown', (e) => {
-    if (gameOver) return;
+    if (gameState !== 'PLAYING') return;
 
     if (e.key === 'ArrowLeft' && playerTrack > 0) {
         playerTrack--;
@@ -87,7 +103,7 @@ document.addEventListener('keydown', (e) => {
 
 // Loop Principal do Jogo
 function update() {
-    if (gameOver) return;
+    if (gameState !== 'PLAYING') return;
 
     frameCount++;
 
@@ -97,13 +113,12 @@ function update() {
         obstacles.push({ track: randomTrack, row: -4 });
     }
 
-    // Move obstáculos para baixo
+    // Move obstáculos
     if (frameCount % speed === 0) {
         for (let i = 0; i < obstacles.length; i++) {
             obstacles[i].row++;
         }
 
-        // Remove obstáculos que saíram da tela e pontua
         if (obstacles.length > 0 && obstacles[0].row >= ROWS) {
             obstacles.shift();
             score += 10;
@@ -117,33 +132,37 @@ function update() {
     for (let obs of obstacles) {
         const obsCol = tracks[obs.track];
         if (Math.abs(playerCol - obsCol) < 3 && Math.abs(playerRow - obs.row) < 4) {
-            gameOver = true;
+            gameState = 'GAMEOVER';
         }
     }
 
-    // Renderiza tudo na tela Canvas
+    // Renderiza a tela
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     drawGrid();
 
-    // Desenha o jogador e os obstáculos
     drawCar(playerCol, playerRow);
     for (let obs of obstacles) {
         drawCar(tracks[obs.track], obs.row);
     }
 
-    // Exibe a pontuação no topo
     ctx.fillStyle = '#1e2612';
     ctx.font = '12px Courier New';
     ctx.fillText(`SCORE: ${score}`, 10, 15);
 
-    if (gameOver) {
+    if (gameState === 'GAMEOVER') {
         ctx.fillStyle = '#1e2612';
         ctx.font = '16px Courier New';
         ctx.fillText("GAME OVER", 50, 200);
+        
+        // Exibe o botão de menu novamente após 1.5s
+        setTimeout(() => {
+            startScreen.style.display = 'flex';
+            document.getElementById('startButton').innerText = 'JOGAR NOVAMENTE';
+        }, 1500);
     } else {
         requestAnimationFrame(update);
     }
 }
 
-// Inicia o jogo
-update();
+// Renderiza a grade de fundo estática na tela inicial
+drawGrid();

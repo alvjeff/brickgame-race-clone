@@ -10,6 +10,14 @@
 
     <div class="brick-console">
         <div class="lcd-screen">
+            <!-- Tela de Menu Inicial -->
+            <div id="startScreen" class="overlay-screen">
+                <h1 class="game-title">BRICK RACE</h1>
+                <p class="game-subtitle">9999 IN 1</p>
+                <button id="startButton" onclick="startGame()">INICIAR JOGO</button>
+            </div>
+
+            <!-- Canvas do Jogo -->
             <canvas id="gameCanvas" width="200" height="400"></canvas>
         </div>
     </div>
