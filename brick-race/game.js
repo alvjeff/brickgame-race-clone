@@ -1,5 +1,6 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
+const loadingScreen = document.getElementById('loadingScreen');
 const startScreen = document.getElementById('startScreen');
 
 // Configuração da Grade de Blocos (10 colunas x 20 linhas)
@@ -8,18 +9,16 @@ const ROWS = 20;
 const BLOCK_SIZE = 20;
 
 // Estados do Jogo
-let gameState = 'START'; // 'START', 'PLAYING', 'CRASHED', 'GAMEOVER'
+let gameState = 'LOADING'; // 'LOADING', 'START', 'PLAYING', 'CRASHED', 'GAMEOVER'
 let playerTrack = 1; 
 let score = 0;
 let obstacles = [];
 let frameCount = 0;
 let speed = 12;
-let crashAnimationTimer = 0; // Temporizador para o efeito da explosão
+let crashAnimationTimer = 0;
 
-// Posições X das 3 pistas na grade
 const tracks = [1, 4, 7];
 
-// Formato do carrinho de blocos (3x4)
 const carShape = [
     [0, 1, 0],
     [1, 1, 1],
@@ -27,15 +26,111 @@ const carShape = [
     [1, 0, 1]
 ];
 
-// Função para iniciar o jogo ao clicar no botão
-function startGame() {
-    gameState = 'PLAYING';
-    startScreen.style.display = 'none';
-    resetGame();
-    update();
+// --- SIMULAÇÃO DE BOOT DA BIG JEFF GAMES (COM BARRA PROGRESSIVA) ---
+window.addEventListener('load', () => {
+    drawGrid(); // Desenha o fundo estático
+    
+    let progress = 0;
+    const bar = document.getElementById('loadingBar');
+    
+    const loadingInterval = setInterval(() => {
+        progress += 2;
+        if (bar) bar.style.width = progress + '%';
+        
+        if (progress >= 100) {
+            clearInterval(loadingInterval);
+            setTimeout(() => {
+                loadingScreen.style.display = 'none';
+                startScreen.style.display = 'flex';
+                gameState = 'START';
+            }, 300);
+        }
+    }, 35);
+});
+
+// --- MELODIA DE INTRODUÇÃO / MENU (Toca garantido com o primeiro clique do usuário) ---
+function playMenuMelody() {
+    try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+
+        const melody = [
+            { freq: 330, dur: 150 }, { freq: 330, dur: 150 }, { freq: 330, dur: 300 },
+            { freq: 330, dur: 150 }, { freq: 330, dur: 150 }, { freq: 330, dur: 300 },
+            { freq: 330, dur: 150 }, { freq: 392, dur: 150 }, { freq: 261.63, dur: 150 }, { freq: 293.66, dur: 150 }, { freq: 330, dur: 600 }
+        ];
+
+        let delay = 0;
+        melody.forEach((note) => {
+            setTimeout(() => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+
+                osc.type = 'square';
+                osc.frequency.value = note.freq;
+
+                gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + (note.dur / 1000));
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start();
+                osc.stop(audioCtx.currentTime + (note.dur / 1000));
+            }, delay);
+            delay += note.dur + 50;
+        });
+    } catch (e) {
+        console.log("Erro no áudio.");
+    }
 }
 
-// Reseta variáveis do jogo
+// --- SOM DE BIP DE LARGADA ---
+function playStartSound() {
+    try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const notes = [523.25, 659.25, 783.99, 1046.50];
+        let delay = 0;
+
+        notes.forEach((freq) => {
+            setTimeout(() => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+
+                osc.type = 'square';
+                osc.frequency.value = freq;
+
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.15);
+            }, delay);
+            delay += 120;
+        });
+    } catch (e) {}
+}
+
+// Função para iniciar o jogo ao clicar no botão
+function startGame() {
+    playMenuMelody(); // Toca a musiquinha assim que clica no menu!
+    
+    // Pequeno atraso para dar tempo da melodia soar antes de arrancar na pista
+    setTimeout(() => {
+        playStartSound();
+        gameState = 'PLAYING';
+        startScreen.style.display = 'none';
+        resetGame();
+        update();
+    }, 1200);
+}
+
 function resetGame() {
     score = 0;
     playerTrack = 1;
@@ -45,7 +140,6 @@ function resetGame() {
     document.getElementById('scoreDisplay').innerText = '000000';
 }
 
-// Desenha um único bloco estilo LCD
 function drawBlock(col, row, active = true) {
     const x = col * BLOCK_SIZE;
     const y = row * BLOCK_SIZE;
@@ -63,7 +157,6 @@ function drawBlock(col, row, active = true) {
     }
 }
 
-// Desenha a grade
 function drawGrid() {
     for (let r = 0; r < ROWS; r++) {
         for (let c = 0; c < COLS; c++) {
@@ -79,7 +172,6 @@ function drawGrid() {
     }
 }
 
-// Desenha o carrinho normal
 function drawCar(colStart, rowStart) {
     for (let r = 0; r < 4; r++) {
         for (let c = 0; c < 3; c++) {
@@ -93,14 +185,12 @@ function drawCar(colStart, rowStart) {
     }
 }
 
-// Desenha o efeito de explosão (carrinho estilhaçado em blocos aleatórios)
 function drawExplosion(colStart, rowStart) {
     for (let r = 0; r < 4; r++) {
         for (let c = 0; c < 3; c++) {
-            // Desenha blocos espalhados simulando destroços
             if ((r + c + crashAnimationTimer) % 2 === 0) {
                 const targetRow = rowStart + r;
-                const targetCol = colStart + c + (Math.random() > 0.5 ? 1 : -1); // Efeito tremido
+                const targetCol = colStart + c + (Math.random() > 0.5 ? 1 : -1);
                 if (targetRow >= 0 && targetRow < ROWS && targetCol >= 0 && targetCol < COLS) {
                     drawBlock(targetCol, targetRow, true);
                 }
@@ -109,7 +199,6 @@ function drawExplosion(colStart, rowStart) {
     }
 }
 
-// Controles do Teclado
 document.addEventListener('keydown', (e) => {
     if (gameState !== 'PLAYING') return;
 
@@ -120,14 +209,12 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-// Loop Principal do Jogo
 function update() {
     if (gameState === 'GAMEOVER') return;
 
     frameCount++;
 
     if (gameState === 'PLAYING') {
-        // Gera novos obstáculos
         if (frameCount % 85 === 0) {
             const randomTrack = Math.floor(Math.random() * 3);
             const ultimoObstaculo = obstacles[obstacles.length - 1];
@@ -146,7 +233,6 @@ function update() {
             }
         }
 
-        // Move obstáculos
         if (frameCount % speed === 0) {
             for (let i = 0; i < obstacles.length; i++) {
                 obstacles[i].row++;
@@ -158,7 +244,6 @@ function update() {
             }
         }
 
-        // Checa colisões
         const playerCol = tracks[playerTrack];
         const playerRow = 16;
 
@@ -171,38 +256,32 @@ function update() {
         }
     }
 
-    // Renderiza a tela base
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     drawGrid();
 
     const playerCol = tracks[playerTrack];
     const playerRow = 16;
 
-    // Desenha obstáculos na cena
     for (let obs of obstacles) {
         drawCar(tracks[obs.track], obs.row);
     }
 
-    // Se bateu, roda a animação curta de explosão antes de congelar
     if (gameState === 'CRASHED') {
         crashAnimationTimer++;
         drawExplosion(playerCol, playerRow);
 
-        // Após alguns instantes de explosão, congela na tela de Game Over
         if (crashAnimationTimer > 25) {
             gameState = 'GAMEOVER';
         }
-    } else {
+    } else if (gameState === 'PLAYING') {
         drawCar(playerCol, playerRow);
     }
 
-    // Atualiza o placar
     document.getElementById('scoreDisplay').innerText = String(score).padStart(6, '0');
 
     if (gameState === 'GAMEOVER') {
-        // Desenha a mensagem de Game Over diretamente congelada sobre a última cena
         ctx.fillStyle = '#1e2612';
-        ctx.fillRect(20, 150, 160, 60); // Fundo escuro para destacar o texto
+        ctx.fillRect(20, 150, 160, 60);
         
         ctx.strokeStyle = '#8b956d';
         ctx.strokeRect(22, 152, 156, 56);
@@ -214,7 +293,6 @@ function update() {
         ctx.font = '10px Courier New';
         ctx.fillText("CLIQUE EM JOGAR", 45, 195);
 
-        // Mostra o botão de reiniciar na moldura
         setTimeout(() => {
             startScreen.style.display = 'flex';
             document.getElementById('startButton').innerText = 'JOGAR NOVAMENTE';
@@ -223,6 +301,3 @@ function update() {
         requestAnimationFrame(update);
     }
 }
-
-// Renderiza a grade inicial estática
-drawGrid();
