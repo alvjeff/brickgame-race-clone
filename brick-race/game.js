@@ -13,7 +13,7 @@ let playerTrack = 1;
 let score = 0;
 let obstacles = [];
 let frameCount = 0;
-let speed = 10;
+let speed = 12;
 
 // Posições X das 3 pistas na grade
 const tracks = [1, 4, 7];
@@ -107,13 +107,33 @@ function update() {
 
     frameCount++;
 
-    // Gera novos obstáculos
-    if (frameCount % (speed * 3) === 0) {
+    // Gera novos obstáculos com inteligência para não trancar a tela
+    if (frameCount % 85 === 0) { // Intervalo maior para dar tempo de reflexão
         const randomTrack = Math.floor(Math.random() * 3);
-        obstacles.push({ track: randomTrack, row: -4 });
+        
+        // Regra de segurança: Só cria um novo obstáculo se o último gerado 
+        // já tiver descido pelo menos 6 linhas, evitando "paredões" verticais colados.
+        const ultimoObstaculo = obstacles[obstacles.length - 1];
+        if (!ultimoObstaculo || ultimoObstaculo.row > 6) {
+            
+            // Opcional: Evitar que 2 carros apareçam na mesma linha exata em pistas adjacentes
+            obstacles.push({ track: randomTrack, row: -4 });
+            
+            // Chance de 30% de vir um segundo carro junto, MAS garantindo que 
+            // nunca bloqueie as 3 pistas de uma vez só (deixando sempre uma rota de fuga)
+            if (Math.random() < 0.3) {
+                let segundaPista;
+                do {
+                    segundaPista = Math.floor(Math.random() * 3);
+                } while (segundaPista === randomTrack); // Garante que é uma pista diferente
+                
+                // Só adiciona o segundo se não lotar demais
+                obstacles.push({ track: segundaPista, row: -4 });
+            }
+        }
     }
 
-    // Move obstáculos
+    // Move obstáculos (velocidade controlada por 'speed')
     if (frameCount % speed === 0) {
         for (let i = 0; i < obstacles.length; i++) {
             obstacles[i].row++;
@@ -154,7 +174,6 @@ function update() {
         ctx.font = '16px Courier New';
         ctx.fillText("GAME OVER", 50, 200);
         
-        // Exibe o botão de menu novamente após 1.5s
         setTimeout(() => {
             startScreen.style.display = 'flex';
             document.getElementById('startButton').innerText = 'JOGAR NOVAMENTE';
