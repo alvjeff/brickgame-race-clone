@@ -108,3 +108,30 @@ canvas {
     transform: translateY(2px);
     box-shadow: 0 2px 0 #111;
 }
+
+/* Estilo do Placar na Moldura Amarela */
+/* Estilo do Placar Compacto na Moldura Amarela */
+.console-scoreboard {
+    background-color: #1e2612;
+    color: #f0cc00;
+    width: 100%;
+    padding: 4px 8px;
+    border-radius: 4px;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 2px inset #ccad00;
+}
+
+.console-scoreboard span {
+    font-size: 11px;
+    letter-spacing: 1px;
+    opacity: 0.8;
+}
+
+#scoreDisplay {
+    font-size: 16px; /* Tamanho menor, elegante e na mesma linha */
+    font-weight: bold;
+    letter-spacing: 2px;
+}

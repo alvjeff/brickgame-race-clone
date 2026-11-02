@@ -13,12 +13,12 @@ let playerTrack = 1;
 let score = 0;
 let obstacles = [];
 let frameCount = 0;
-let speed = 12;
+let speed = 12; // Velocidade suave
 
 // Posições X das 3 pistas na grade
 const tracks = [1, 4, 7];
 
-// Formato do carrinho de blocos
+// Formato do carrinho de blocos (3x4)
 const carShape = [
     [0, 1, 0],
     [1, 1, 1],
@@ -40,6 +40,7 @@ function resetGame() {
     playerTrack = 1;
     obstacles = [];
     frameCount = 0;
+    document.getElementById('scoreDisplay').innerText = '000000';
 }
 
 // Desenha um único bloco estilo LCD
@@ -107,33 +108,27 @@ function update() {
 
     frameCount++;
 
-    // Gera novos obstáculos com inteligência para não trancar a tela
-    if (frameCount % 85 === 0) { // Intervalo maior para dar tempo de reflexão
+    // Gera novos obstáculos com inteligência anti-paredão
+    if (frameCount % 85 === 0) {
         const randomTrack = Math.floor(Math.random() * 3);
-        
-        // Regra de segurança: Só cria um novo obstáculo se o último gerado 
-        // já tiver descido pelo menos 6 linhas, evitando "paredões" verticais colados.
         const ultimoObstaculo = obstacles[obstacles.length - 1];
+        
         if (!ultimoObstaculo || ultimoObstaculo.row > 6) {
-            
-            // Opcional: Evitar que 2 carros apareçam na mesma linha exata em pistas adjacentes
             obstacles.push({ track: randomTrack, row: -4 });
             
-            // Chance de 30% de vir um segundo carro junto, MAS garantindo que 
-            // nunca bloqueie as 3 pistas de uma vez só (deixando sempre uma rota de fuga)
+            // Chance de segundo carro sem fechar tudo
             if (Math.random() < 0.3) {
                 let segundaPista;
                 do {
                     segundaPista = Math.floor(Math.random() * 3);
-                } while (segundaPista === randomTrack); // Garante que é uma pista diferente
+                } while (segundaPista === randomTrack);
                 
-                // Só adiciona o segundo se não lotar demais
                 obstacles.push({ track: segundaPista, row: -4 });
             }
         }
     }
 
-    // Move obstáculos (velocidade controlada por 'speed')
+    // Move obstáculos para baixo
     if (frameCount % speed === 0) {
         for (let i = 0; i < obstacles.length; i++) {
             obstacles[i].row++;
@@ -165,9 +160,8 @@ function update() {
         drawCar(tracks[obs.track], obs.row);
     }
 
-    ctx.fillStyle = '#1e2612';
-    ctx.font = '12px Courier New';
-    ctx.fillText(`SCORE: ${score}`, 10, 15);
+    // Atualiza o placar na moldura amarela
+    document.getElementById('scoreDisplay').innerText = String(score).padStart(6, '0');
 
     if (gameState === 'GAMEOVER') {
         ctx.fillStyle = '#1e2612';
