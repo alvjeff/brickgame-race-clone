@@ -17,6 +17,13 @@ let frameCount = 0;
 let speed = 12;
 let crashAnimationTimer = 0;
 
+// Contexto de Áudio Global para evitar travamentos
+let audioCtx = null;
+
+// Variáveis para o motor contínuo
+let motorOscillator = null;
+let motorGain = null;
+
 const tracks = [1, 4, 7];
 
 const carShape = [
@@ -26,7 +33,18 @@ const carShape = [
     [1, 0, 1]
 ];
 
-// --- SIMULAÇÃO DE BOOT DA BIG JEFF GAMES (COM BARRA PROGRESSIVA) ---
+// Inicializa ou resume o AudioContext de forma segura
+function getAudioContext() {
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+    return audioCtx;
+}
+
+// --- SIMULAÇÃO DE BOOT DA BIG JEFF GAMES (BARRA PROGRESSIVA) ---
 window.addEventListener('load', () => {
     drawGrid(); // Desenha o fundo estático
     
@@ -48,15 +66,10 @@ window.addEventListener('load', () => {
     }, 35);
 });
 
-// --- MELODIA DE INTRODUÇÃO / MENU (Toca garantido com o primeiro clique do usuário) ---
+// --- MELODIA DE INTRODUÇÃO / MENU ---
 function playMenuMelody() {
     try {
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        
-        if (audioCtx.state === 'suspended') {
-            audioCtx.resume();
-        }
-
+        const ctxAudio = getAudioContext();
         const melody = [
             { freq: 330, dur: 150 }, { freq: 330, dur: 150 }, { freq: 330, dur: 300 },
             { freq: 330, dur: 150 }, { freq: 330, dur: 150 }, { freq: 330, dur: 300 },
@@ -66,67 +79,117 @@ function playMenuMelody() {
         let delay = 0;
         melody.forEach((note) => {
             setTimeout(() => {
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
+                const osc = ctxAudio.createOscillator();
+                const gain = ctxAudio.createGain();
 
                 osc.type = 'square';
                 osc.frequency.value = note.freq;
 
-                gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + (note.dur / 1000));
+                gain.gain.setValueAtTime(0.08, ctxAudio.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctxAudio.currentTime + (note.dur / 1000));
 
                 osc.connect(gain);
-                gain.connect(audioCtx.destination);
+                gain.connect(ctxAudio.destination);
 
                 osc.start();
-                osc.stop(audioCtx.currentTime + (note.dur / 1000));
+                osc.stop(ctxAudio.currentTime + (note.dur / 1000));
             }, delay);
             delay += note.dur + 50;
-        });
-    } catch (e) {
-        console.log("Erro no áudio.");
-    }
-}
-
-// --- SOM DE BIP DE LARGADA ---
-function playStartSound() {
-    try {
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const notes = [523.25, 659.25, 783.99, 1046.50];
-        let delay = 0;
-
-        notes.forEach((freq) => {
-            setTimeout(() => {
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-
-                osc.type = 'square';
-                osc.frequency.value = freq;
-
-                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
-
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-
-                osc.start();
-                osc.stop(audioCtx.currentTime + 0.15);
-            }, delay);
-            delay += 120;
         });
     } catch (e) {}
 }
 
+// --- SOM CONTÍNUO DO MOTOR DO CARRO ---
+function startMotorSound() {
+    try {
+        const ctxAudio = getAudioContext();
+        motorOscillator = ctxAudio.createOscillator();
+        motorGain = ctxAudio.createGain();
+
+        motorOscillator.type = 'sawtooth';
+        motorOscillator.frequency.setValueAtTime(60, ctxAudio.currentTime);
+
+        motorGain.gain.setValueAtTime(0.03, ctxAudio.currentTime);
+
+        motorOscillator.connect(motorGain);
+        motorGain.connect(ctxAudio.destination);
+
+        motorOscillator.start();
+    } catch (e) {}
+}
+
+function stopMotorSound() {
+    try {
+        if (motorOscillator) {
+            motorOscillator.stop();
+            motorOscillator.disconnect();
+            motorOscillator = null;
+        }
+    } catch (e) {}
+}
+
+// --- SOM DE ULTRAPASSAGEM (BIP) ---
+function playPassSound() {
+    try {
+        const ctxAudio = getAudioContext();
+        const osc = ctxAudio.createOscillator();
+        const gain = ctxAudio.createGain();
+
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(880, ctxAudio.currentTime);
+
+        gain.gain.setValueAtTime(0.05, ctxAudio.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctxAudio.currentTime + 0.08);
+
+        osc.connect(gain);
+        gain.connect(ctxAudio.destination);
+
+        osc.start();
+        osc.stop(ctxAudio.currentTime + 0.08);
+    } catch (e) {}
+}
+
+// --- SOM DE EXPLOSÃO ESTILO "PRIL-RIL-RIL" (CURTO-CIRCUITO / IMPACTO RETRÔ) ---
+function playExplosionSound() {
+    stopMotorSound(); 
+    try {
+        const ctxAudio = getAudioContext();
+        
+        // Dispara um trem de pulsos rápidos gerando o efeito "pril-ril-ril"
+        const frequencies = [400, 150, 300, 100, 200, 80];
+        let delay = 0;
+
+        frequencies.forEach((freq, index) => {
+            setTimeout(() => {
+                const osc = ctxAudio.createOscillator();
+                const gain = ctxAudio.createGain();
+
+                osc.type = 'sawtooth'; // Onda áspera e metálica
+                osc.frequency.value = freq + (Math.random() * 50); // Variação rápida para dar o efeito "ril-ril"
+
+                gain.gain.setValueAtTime(0.12, ctxAudio.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctxAudio.currentTime + 0.05);
+
+                osc.connect(gain);
+                gain.connect(ctxAudio.destination);
+
+                osc.start();
+                osc.stop(ctxAudio.currentTime + 0.05);
+            }, delay);
+            
+            delay += 45; // Intervalo bem curtinho entre os pulsos para emular o chiado acelerado
+        });
+    } catch (e) {}
+}
 // Função para iniciar o jogo ao clicar no botão
 function startGame() {
-    playMenuMelody(); // Toca a musiquinha assim que clica no menu!
+    playMenuMelody(); 
     
-    // Pequeno atraso para dar tempo da melodia soar antes de arrancar na pista
     setTimeout(() => {
-        playStartSound();
         gameState = 'PLAYING';
         startScreen.style.display = 'none';
         resetGame();
+        startMotorSound();
         update();
     }, 1200);
 }
@@ -241,6 +304,7 @@ function update() {
             if (obstacles.length > 0 && obstacles[0].row >= ROWS) {
                 obstacles.shift();
                 score += 10;
+                playPassSound();
             }
         }
 
@@ -252,6 +316,7 @@ function update() {
             if (Math.abs(playerCol - obsCol) < 3 && Math.abs(playerRow - obs.row) < 4) {
                 gameState = 'CRASHED';
                 crashAnimationTimer = 0;
+                playExplosionSound();
             }
         }
     }
@@ -280,6 +345,8 @@ function update() {
     document.getElementById('scoreDisplay').innerText = String(score).padStart(6, '0');
 
     if (gameState === 'GAMEOVER') {
+        stopMotorSound(); // Garante que o motor desliga no game over
+
         ctx.fillStyle = '#1e2612';
         ctx.fillRect(20, 150, 160, 60);
         
