@@ -44,6 +44,7 @@ let speed = INITIAL_SPEED;
 let crashAnimationTimer = 0;
 let level8TransitionTriggered = false;
 let speedPhaseStartScore = null;   // pontuação em que a 2ª rampa de velocidade começou
+let startPending = false;          // evita iniciar duas partidas com clique/Enter repetido
 
 let audioCtx = null;
 let motorOscillator = null;
@@ -57,6 +58,20 @@ const carShape = [
     [0, 1, 0],
     [1, 0, 1]
 ];
+
+// Fonte bitmap 5x7 usada apenas no logo da tela inicial.
+// Cada string é uma linha; '1' acende a célula do LCD.
+const TITLE_FONT = {
+    B: ['11110', '10001', '10001', '11110', '10001', '10001', '11110'],
+    R: ['11110', '10001', '10001', '11110', '10100', '10010', '10001'],
+    I: ['11111', '00100', '00100', '00100', '00100', '00100', '11111'],
+    C: ['01110', '10001', '10000', '10000', '10000', '10001', '01110'],
+    K: ['10001', '10010', '10100', '11000', '10100', '10010', '10001'],
+    A: ['01110', '10001', '10001', '11111', '10001', '10001', '10001'],
+    E: ['11111', '10000', '10000', '11110', '10000', '10000', '11111']
+};
+
+const TITLE_BLOCK = 5; // tamanho de cada "pixel" do logo no canvas
 
 function getAudioContext() {
     if (!audioCtx) {
@@ -72,6 +87,7 @@ function getAudioContext() {
 window.addEventListener('load', () => {
     try {
         drawGrid();
+        drawTitleLogo();
         updateScoreDisplay();
         
         let progress = 0;
@@ -204,8 +220,13 @@ function playExplosionSound() {
 }
 
 function startGame() {
+    // Só inicia a partir do menu e nunca duas vezes ao mesmo tempo.
+    if (startPending || gameState !== 'START') return;
+    startPending = true;
+
     playMenuMelody(); 
     setTimeout(() => {
+        startPending = false;
         gameState = 'PLAYING';
         if (startScreen) startScreen.style.display = 'none';
         resetGame();
@@ -280,6 +301,49 @@ function drawGrid() {
             drawBlock(9, r, true);
         }
     }
+}
+
+// Desenha o logo "BRICK RACE" em pixel art no canvas da tela inicial,
+// usando a mesma linguagem de blocos do LCD (quadradinhos com 1px de respiro).
+function drawTitleLogo() {
+    const logoCanvas = document.getElementById('titleLogo');
+    if (!logoCanvas) return;
+
+    const g = logoCanvas.getContext('2d');
+    if (!g) return;
+
+    g.clearRect(0, 0, logoCanvas.width, logoCanvas.height);
+
+    const cell = TITLE_BLOCK;
+    const gap = cell;
+    const glyphWidth = 5 * cell;
+
+    function drawWord(word, top) {
+        const wordWidth = word.length * glyphWidth + (word.length - 1) * gap;
+        let x = Math.floor((logoCanvas.width - wordWidth) / 2);
+
+        for (const letter of word) {
+            const glyph = TITLE_FONT[letter];
+            if (!glyph) {
+                x += glyphWidth + gap;
+                continue;
+            }
+
+            for (let row = 0; row < glyph.length; row++) {
+                for (let col = 0; col < 5; col++) {
+                    if (glyph[row][col] !== '1') continue;
+                    g.fillStyle = '#1e2612';
+                    g.fillRect(x + col * cell, top + row * cell, cell - 1, cell - 1);
+                }
+            }
+
+            x += glyphWidth + gap;
+        }
+    }
+
+    // Duas linhas, no mesmo esquema de grade do jogo.
+    drawWord('BRICK', 6);
+    drawWord('RACE', 6 + 7 * cell + cell);
 }
 
 function drawCar(colStart, rowStart) {
@@ -358,6 +422,13 @@ function drawPauseOverlay() {
 
 // --- CONTROLE POR TECLADO ---
 document.addEventListener('keydown', (e) => {
+    // Enter/Espaço iniciam a partida no menu (como o START do SNES).
+    if (gameState === 'START' && (e.key === 'Enter' || e.key === ' ')) {
+        e.preventDefault();
+        startGame();
+        return;
+    }
+
     if (e.key === 'p' || e.key === 'P') {
         togglePause();
         return;
@@ -536,6 +607,7 @@ function update() {
         ctx.fillText("CLIQUE EM JOGAR", 45, 195);
 
         setTimeout(() => {
+            gameState = 'START';
             if (startScreen) startScreen.style.display = 'flex';
             const startBtn = document.getElementById('startButton');
             if (startBtn) startBtn.innerText = 'JOGAR NOVAMENTE';

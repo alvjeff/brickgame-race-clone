@@ -27,10 +27,17 @@
                 </div>
             </div>
 
-            <!-- Tela de Menu Inicial -->
-            <div id="startScreen" class="overlay-screen" style="display: none;">
-                <div class="menu-title">RACE</div>
-                <button id="startButton" onclick="startGame()">JOGAR</button>
+            <!-- Tela de Menu Inicial (LCD estilo Game Boy / Nokia) -->
+            <div id="startScreen" class="overlay-screen title-screen" style="display: none;">
+                <div class="title-frame">
+                    <div class="logo-brand">BIG JEFF GAMES</div>
+                    <canvas id="titleLogo" width="160" height="90" aria-label="Brick Race"></canvas>
+                    <div class="logo-tagline">LCD RACING</div>
+                </div>
+
+                <div class="press-start">APERTE START</div>
+
+                <button id="startButton" class="start-btn" onclick="startGame()">JOGAR</button>
             </div>
         </div>
 
