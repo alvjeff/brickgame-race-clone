@@ -14,10 +14,29 @@ const FINE_CONTROL_LEVEL = 8;      // nível em que o controle lateral fica fino
 const NORMAL_LATERAL_STEP = 3;     // deslocamento lateral antes do nível 8
 const FINE_LATERAL_STEP = 1;       // deslocamento lateral a partir do nível 8
 
+// Recorde persistente (mesmo esquema do jogo do dinossauro do Chrome)
+const HIGH_SCORE_KEY = 'brickRaceHighScore';
+
+function loadHighScore() {
+    try {
+        const stored = parseInt(localStorage.getItem(HIGH_SCORE_KEY), 10);
+        return Number.isFinite(stored) && stored > 0 ? stored : 0;
+    } catch (e) {
+        return 0; // localStorage indisponível: joga sem recorde persistente
+    }
+}
+
+function saveHighScore(value) {
+    try {
+        localStorage.setItem(HIGH_SCORE_KEY, String(value));
+    } catch (e) {}
+}
+
 // Estados do Jogo
 let gameState = 'LOADING'; 
 let playerX = 4; 
 let score = 0;
+let highScore = loadHighScore();
 let level = 1;
 let obstacles = [];
 let frameCount = 0;
@@ -53,6 +72,7 @@ function getAudioContext() {
 window.addEventListener('load', () => {
     try {
         drawGrid();
+        updateScoreDisplay();
         
         let progress = 0;
         const bar = document.getElementById('loadingBar');
@@ -204,8 +224,15 @@ function resetGame() {
     crashAnimationTimer = 0;
     level8TransitionTriggered = false;
     speedPhaseStartScore = null;
+    updateScoreDisplay();
+}
+
+function updateScoreDisplay() {
     const scoreEl = document.getElementById('scoreDisplay');
-    if (scoreEl) scoreEl.innerText = '000000';
+    if (scoreEl) scoreEl.innerText = String(score).padStart(6, '0');
+
+    const hiEl = document.getElementById('highScoreDisplay');
+    if (hiEl) hiEl.innerText = String(highScore).padStart(6, '0');
 }
 
 // Tabela única de velocidade: usada na 1ª volta (score absoluto)
@@ -484,8 +511,13 @@ function update() {
         drawCar(playerX, playerRow);
     }
 
-    const scoreDisplay = document.getElementById('scoreDisplay');
-    if (scoreDisplay) scoreDisplay.innerText = String(score).padStart(6, '0');
+    // Recorde ao vivo: assim que a pontuação supera o HI, ele já é atualizado
+    // (e persistido) sem esperar o game over.
+    if (score > highScore) {
+        highScore = score;
+        saveHighScore(highScore);
+    }
+    updateScoreDisplay();
 
     if (gameState === 'GAMEOVER') {
         stopMotorSound();

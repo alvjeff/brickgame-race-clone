@@ -28,8 +28,25 @@ body {
     border-radius: 4px;
     margin-bottom: 12px;
     letter-spacing: 2px;
-    width: 176px;
+    width: 206px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    line-height: 1.1;
     text-align: center;
+}
+
+.score-line {
+    white-space: nowrap;
+}
+
+/* Recorde no estilo "HI" do jogo do dinossauro */
+.hi-line {
+    font-size: 11px;
+    letter-spacing: 1px;
+    color: #6d7853;
 }
 
 .screen-wrapper {
