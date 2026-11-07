@@ -27,6 +27,33 @@
                 </div>
             </div>
 
+            <!-- Aviso de Pause com botão de reiniciar -->
+            <div id="pauseOverlay" class="pause-overlay" style="display: none;">
+                <div class="pause-panel">
+                    <div class="pause-title">PAUSE</div>
+                    <div class="pause-hint">P PARA VOLTAR</div>
+                    <button id="btnRestart" class="restart-btn" type="button"
+                            title="Reiniciar jogo" aria-label="Reiniciar jogo">
+                        <svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true">
+                            <path d="M13.5 8a5.5 5.5 0 1 1-1.61-3.89" />
+                            <path d="M13.5 2.5v4h-4" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Confirmação de reinício -->
+            <div id="restartConfirm" class="confirm-overlay" style="display: none;">
+                <div class="confirm-panel">
+                    <div class="confirm-title">REINICIAR?</div>
+                    <div class="confirm-sub">PERDE O PROGRESSO</div>
+                    <div class="confirm-actions">
+                        <button id="btnConfirmRestart" class="confirm-btn" type="button">SIM</button>
+                        <button id="btnCancelRestart" class="confirm-btn" type="button">NÃO</button>
+                    </div>
+                </div>
+            </div>
+
             <!-- Tela de Menu Inicial (LCD estilo Game Boy / Nokia) -->
             <div id="startScreen" class="overlay-screen title-screen" style="display: none;">
                 <div class="title-frame">

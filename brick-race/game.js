@@ -2,6 +2,8 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const loadingScreen = document.getElementById('loadingScreen');
 const startScreen = document.getElementById('startScreen');
+const pauseOverlay = document.getElementById('pauseOverlay');
+const restartConfirm = document.getElementById('restartConfirm');
 
 // Configuração da Grade de Blocos (10 colunas x 20 linhas)
 const COLS = 10;
@@ -393,39 +395,78 @@ function moverDireita() {
 }
 
 // --- PAUSE / RETOMADA (compartilhado entre teclado e botão) ---
+function isRestartConfirmOpen() {
+    return !!restartConfirm && restartConfirm.style.display !== 'none';
+}
+
+function showPauseOverlay() {
+    if (pauseOverlay) pauseOverlay.style.display = 'flex';
+    hideRestartConfirm();
+}
+
+function hidePauseOverlay() {
+    if (pauseOverlay) pauseOverlay.style.display = 'none';
+    hideRestartConfirm();
+}
+
+function showRestartConfirm() {
+    if (!restartConfirm) return;
+    restartConfirm.style.display = 'flex';
+    const confirmBtn = document.getElementById('btnConfirmRestart');
+    if (confirmBtn) confirmBtn.focus();
+}
+
+function hideRestartConfirm() {
+    if (restartConfirm) restartConfirm.style.display = 'none';
+}
+
 function togglePause() {
+    // Com a caixa de confirmação aberta, exige SIM ou NÃO.
+    if (isRestartConfirmOpen()) return;
+
     if (gameState === 'PLAYING') {
         gameState = 'PAUSED';
         if (motorGain && audioCtx) motorGain.gain.setValueAtTime(0, audioCtx.currentTime);
-        drawPauseOverlay();
+        showPauseOverlay();
     } else if (gameState === 'PAUSED') {
         gameState = 'PLAYING';
         if (motorGain && audioCtx) motorGain.gain.setValueAtTime(0.025, audioCtx.currentTime);
+        hidePauseOverlay();
         update();
     }
 }
 
-function drawPauseOverlay() {
-    ctx.fillStyle = 'rgba(30, 38, 18, 0.85)';
-    ctx.fillRect(20, 150, 160, 60);
+// Abandona a partida e volta para a tela inicial (o recorde é mantido).
+function restartGame() {
+    // Evita reinício duplicado (touchstart + click).
+    if (!isRestartConfirmOpen()) return;
 
-    ctx.strokeStyle = '#8b956d';
-    ctx.strokeRect(22, 152, 156, 56);
+    hidePauseOverlay();
+    stopMotorSound();
+    resetGame();
+    gameState = 'START';
 
-    ctx.fillStyle = '#8b956d';
-    ctx.font = 'bold 16px Courier New';
-    ctx.fillText("PAUSE", 72, 175);
+    if (startScreen) startScreen.style.display = 'flex';
 
-    ctx.font = '9px Courier New';
-    ctx.fillText("P OU PAUSE P/ VOLTAR", 32, 195);
+    const startBtn = document.getElementById('startButton');
+    if (startBtn) {
+        startBtn.innerText = 'JOGAR';
+        startBtn.focus();
+    }
 }
 
 // --- CONTROLE POR TECLADO ---
 document.addEventListener('keydown', (e) => {
-    // Enter/Espaço iniciam a partida no menu (como o START do SNES).
+    // Enter/Espaço iniciam a partida no menu (como o START de um portátil retrô).
     if (gameState === 'START' && (e.key === 'Enter' || e.key === ' ')) {
         e.preventDefault();
         startGame();
+        return;
+    }
+
+    // Esc fecha a caixa de confirmação de reinício.
+    if (e.key === 'Escape' && isRestartConfirmOpen()) {
+        hideRestartConfirm();
         return;
     }
 
@@ -446,6 +487,9 @@ window.addEventListener('DOMContentLoaded', () => {
     const btnLeft = document.getElementById('btnLeft');
     const btnRight = document.getElementById('btnRight');
     const btnPause = document.getElementById('btnPause');
+    const btnRestart = document.getElementById('btnRestart');
+    const btnConfirmRestart = document.getElementById('btnConfirmRestart');
+    const btnCancelRestart = document.getElementById('btnCancelRestart');
 
     if (btnLeft) {
         btnLeft.addEventListener('click', moverEsquerda);
@@ -460,6 +504,21 @@ window.addEventListener('DOMContentLoaded', () => {
     if (btnPause) {
         btnPause.addEventListener('click', togglePause);
         btnPause.addEventListener('touchstart', (e) => { e.preventDefault(); togglePause(); });
+    }
+
+    if (btnRestart) {
+        btnRestart.addEventListener('click', showRestartConfirm);
+        btnRestart.addEventListener('touchstart', (e) => { e.preventDefault(); showRestartConfirm(); });
+    }
+
+    if (btnConfirmRestart) {
+        btnConfirmRestart.addEventListener('click', restartGame);
+        btnConfirmRestart.addEventListener('touchstart', (e) => { e.preventDefault(); restartGame(); });
+    }
+
+    if (btnCancelRestart) {
+        btnCancelRestart.addEventListener('click', hideRestartConfirm);
+        btnCancelRestart.addEventListener('touchstart', (e) => { e.preventDefault(); hideRestartConfirm(); });
     }
 });
 

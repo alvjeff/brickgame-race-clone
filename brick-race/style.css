@@ -183,6 +183,139 @@ canvas {
     outline-offset: 2px;
 }
 
+/* --- Aviso de Pause e confirmação de reinício (mesma linguagem do LCD) --- */
+.pause-overlay,
+.confirm-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(30, 38, 18, 0.45);
+}
+
+.pause-overlay {
+    z-index: 20;
+}
+
+.confirm-overlay {
+    z-index: 30;
+    background: rgba(30, 38, 18, 0.6);
+}
+
+.pause-panel,
+.confirm-panel {
+    background: #1e2612;
+    border: 2px solid #8b956d;
+    box-sizing: border-box;
+    padding: 10px 12px;
+    text-align: center;
+    color: #8b956d;
+    font-family: 'Courier New', Courier, monospace;
+    width: 150px;
+}
+
+.pause-title {
+    font-size: 16px;
+    font-weight: bold;
+    letter-spacing: 3px;
+}
+
+.pause-hint {
+    margin-top: 3px;
+    font-size: 9px;
+    letter-spacing: 1px;
+    opacity: 0.85;
+}
+
+/* Botão quadradinho com a seta circular, no estilo dos controles */
+.restart-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 30px;
+    margin-top: 10px;
+    padding: 0;
+    background: #8b956d;
+    color: #1e2612;
+    border: none;
+    border-radius: 3px;
+    box-shadow: 0 3px 0 #55603c;
+    cursor: pointer;
+    transition: all 0.05s ease;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.restart-btn:active {
+    transform: translateY(2px);
+    box-shadow: 0 1px 0 #55603c;
+}
+
+.restart-btn:focus-visible {
+    outline: 2px solid #8b956d;
+    outline-offset: 2px;
+}
+
+.restart-btn svg {
+    display: block;
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: square;
+    stroke-linejoin: miter;
+}
+
+.confirm-title {
+    font-size: 12px;
+    font-weight: bold;
+    letter-spacing: 2px;
+}
+
+.confirm-sub {
+    margin-top: 3px;
+    font-size: 8px;
+    letter-spacing: 1px;
+    opacity: 0.85;
+}
+
+.confirm-actions {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.confirm-btn {
+    background: #8b956d;
+    color: #1e2612;
+    border: 2px solid #55603c;
+    border-radius: 3px;
+    padding: 4px 12px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 10px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    cursor: pointer;
+    box-shadow: 0 3px 0 #55603c;
+    transition: all 0.05s ease;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.confirm-btn:active {
+    transform: translateY(2px);
+    box-shadow: 0 1px 0 #55603c;
+}
+
+.confirm-btn:focus-visible {
+    outline: 2px solid #8b956d;
+    outline-offset: 2px;
+}
+
 /* Botões de Direção Inferiores */
 .controls-container {
     display: flex;
