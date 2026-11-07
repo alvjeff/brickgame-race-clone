@@ -8,6 +8,12 @@ const COLS = 10;
 const ROWS = 20;
 const BLOCK_SIZE = 20;
 
+// Dificuldade
+const INITIAL_SPEED = 14;          // 1 linha descida a cada N frames (menor = mais rápido)
+const FINE_CONTROL_LEVEL = 8;      // nível em que o controle lateral fica fino
+const NORMAL_LATERAL_STEP = 3;     // deslocamento lateral antes do nível 8
+const FINE_LATERAL_STEP = 1;       // deslocamento lateral a partir do nível 8
+
 // Estados do Jogo
 let gameState = 'LOADING'; 
 let playerX = 4; 
@@ -15,9 +21,10 @@ let score = 0;
 let level = 1;
 let obstacles = [];
 let frameCount = 0;
-let speed = 14; 
+let speed = INITIAL_SPEED; 
 let crashAnimationTimer = 0;
 let level8TransitionTriggered = false;
+let speedPhaseStartScore = null;   // pontuação em que a 2ª rampa de velocidade começou
 
 let audioCtx = null;
 let motorOscillator = null;
@@ -118,7 +125,9 @@ function startMotorSound() {
 function updateMotorPitch() {
     if (motorOscillator && audioCtx && audioCtx.state === 'running') {
         try {
-            let baseFreq = 55 + (level * 8);
+            // Pitch acompanha a velocidade real (e não o nível), então volta
+            // ao tom grave quando a 2ª rampa reinicia.
+            let baseFreq = 55 + (INITIAL_SPEED - speed) * 8;
             motorOscillator.frequency.setValueAtTime(baseFreq, audioCtx.currentTime);
         } catch (e) {}
     }
@@ -188,14 +197,28 @@ function startGame() {
 function resetGame() {
     score = 0;
     level = 1;
-    speed = 14; 
+    speed = INITIAL_SPEED; 
     playerX = 4; 
     obstacles = [];
     frameCount = 0;
     crashAnimationTimer = 0;
     level8TransitionTriggered = false;
+    speedPhaseStartScore = null;
     const scoreEl = document.getElementById('scoreDisplay');
     if (scoreEl) scoreEl.innerText = '000000';
+}
+
+// Tabela única de velocidade: usada na 1ª volta (score absoluto)
+// e na 2ª volta (score relativo ao ponto de reset).
+function getSpeedForScore(points) {
+    if (points >= 900) return 3;
+    if (points >= 600) return 4;
+    if (points >= 450) return 5;
+    if (points >= 320) return 6;
+    if (points >= 200) return 8;
+    if (points >= 100) return 10;
+    if (points >= 40) return 12;
+    return INITIAL_SPEED;
 }
 
 function drawBlock(col, row, active = true) {
@@ -261,31 +284,55 @@ function drawExplosion(colStart, rowStart) {
 }
 
 // --- FUNÇÃO DE MOVIMENTO LATERAL COMPARTILHADA ---
+// A partir do nível 8 o carro anda de 1 em 1 coluna (controle fino).
+function getLateralStep() {
+    return (level >= FINE_CONTROL_LEVEL) ? FINE_LATERAL_STEP : NORMAL_LATERAL_STEP;
+}
+
 function moverEsquerda() {
     if (gameState !== 'PLAYING') return;
     const minX = 1;
-    let passo = (level >= 8) ? 2 : 3;
-    playerX = Math.max(minX, playerX - passo);
+    playerX = Math.max(minX, playerX - getLateralStep());
 }
 
 function moverDireita() {
     if (gameState !== 'PLAYING') return;
     const maxX = 7;
-    let passo = (level >= 8) ? 2 : 3;
-    playerX = Math.min(maxX, playerX + passo);
+    playerX = Math.min(maxX, playerX + getLateralStep());
+}
+
+// --- PAUSE / RETOMADA (compartilhado entre teclado e botão) ---
+function togglePause() {
+    if (gameState === 'PLAYING') {
+        gameState = 'PAUSED';
+        if (motorGain && audioCtx) motorGain.gain.setValueAtTime(0, audioCtx.currentTime);
+        drawPauseOverlay();
+    } else if (gameState === 'PAUSED') {
+        gameState = 'PLAYING';
+        if (motorGain && audioCtx) motorGain.gain.setValueAtTime(0.025, audioCtx.currentTime);
+        update();
+    }
+}
+
+function drawPauseOverlay() {
+    ctx.fillStyle = 'rgba(30, 38, 18, 0.85)';
+    ctx.fillRect(20, 150, 160, 60);
+
+    ctx.strokeStyle = '#8b956d';
+    ctx.strokeRect(22, 152, 156, 56);
+
+    ctx.fillStyle = '#8b956d';
+    ctx.font = 'bold 16px Courier New';
+    ctx.fillText("PAUSE", 72, 175);
+
+    ctx.font = '9px Courier New';
+    ctx.fillText("P OU PAUSE P/ VOLTAR", 32, 195);
 }
 
 // --- CONTROLE POR TECLADO ---
 document.addEventListener('keydown', (e) => {
     if (e.key === 'p' || e.key === 'P') {
-        if (gameState === 'PLAYING') {
-            gameState = 'PAUSED';
-            if (motorGain && audioCtx) motorGain.gain.setValueAtTime(0, audioCtx.currentTime);
-        } else if (gameState === 'PAUSED') {
-            gameState = 'PLAYING';
-            if (motorGain && audioCtx) motorGain.gain.setValueAtTime(0.025, audioCtx.currentTime);
-            update();
-        }
+        togglePause();
         return;
     }
 
@@ -300,6 +347,7 @@ document.addEventListener('keydown', (e) => {
 window.addEventListener('DOMContentLoaded', () => {
     const btnLeft = document.getElementById('btnLeft');
     const btnRight = document.getElementById('btnRight');
+    const btnPause = document.getElementById('btnPause');
 
     if (btnLeft) {
         btnLeft.addEventListener('click', moverEsquerda);
@@ -310,6 +358,11 @@ window.addEventListener('DOMContentLoaded', () => {
         btnRight.addEventListener('click', moverDireita);
         btnRight.addEventListener('touchstart', (e) => { e.preventDefault(); moverDireita(); });
     }
+
+    if (btnPause) {
+        btnPause.addEventListener('click', togglePause);
+        btnPause.addEventListener('touchstart', (e) => { e.preventDefault(); togglePause(); });
+    }
 });
 
 function update() {
@@ -318,41 +371,41 @@ function update() {
     frameCount++;
 
     if (gameState === 'PLAYING') {
-        let previousLevel = level;
-
+        // Nível define a frequência/agressividade dos obstáculos.
         if (score >= 900) {
             level = 9;
-            speed = 3;  
         } else if (score >= 750) {
             level = 8;
-            speed = 4;  
         } else if (score >= 600) {
             level = 7;
-            speed = 4;  
         } else if (score >= 450) {
             level = 6;
-            speed = 5;  
         } else if (score >= 320) {
             level = 5;
-            speed = 6;
         } else if (score >= 200) {
             level = 4;
-            speed = 8;
         } else if (score >= 100) {
             level = 3;
-            speed = 10;
         } else if (score >= 40) {
             level = 2;
-            speed = 12;
         } else {
             level = 1;
-            speed = 14; 
         }
 
-        if (level === 8 && previousLevel < 8 && !level8TransitionTriggered) {
+        // Entrada no nível de controle fino: limpa a pista e inicia a 2ª rampa
+        // de velocidade do zero, sem perder o passo lateral detalhado.
+        if (level >= FINE_CONTROL_LEVEL && !level8TransitionTriggered) {
             level8TransitionTriggered = true;
+            speedPhaseStartScore = score;
             obstacles = [];
             frameCount += 30;
+        }
+
+        // 1ª volta: score absoluto. 2ª volta: score relativo ao reset.
+        if (speedPhaseStartScore !== null) {
+            speed = getSpeedForScore(score - speedPhaseStartScore);
+        } else {
+            speed = getSpeedForScore(score);
         }
 
         updateMotorPitch();
@@ -429,19 +482,6 @@ function update() {
         }
     } else if (gameState === 'PLAYING') {
         drawCar(playerX, playerRow);
-    } else if (gameState === 'PAUSED') {
-        ctx.fillStyle = 'rgba(30, 38, 18, 0.85)';
-        ctx.fillRect(20, 150, 160, 60);
-        
-        ctx.strokeStyle = '#8b956d';
-        ctx.strokeRect(22, 152, 156, 56);
-
-        ctx.fillStyle = '#8b956d';
-        ctx.font = 'bold 16px Courier New';
-        ctx.fillText("PAUSE", 72, 175);
-        
-        ctx.font = '9px Courier New';
-        ctx.fillText("APERTE P PARA VOLTAR", 32, 195);
     }
 
     const scoreDisplay = document.getElementById('scoreDisplay');

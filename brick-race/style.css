@@ -111,23 +111,39 @@ canvas {
 .controls-container {
     display: flex;
     justify-content: space-between;
+    align-items: stretch;
+    gap: 8px;
     margin-top: 15px;
-    width: 200px;
-    padding: 0 5px;
+    /* Mesma largura externa da tela (200px + 2 * 3px de borda) */
+    width: 206px;
+    box-sizing: border-box;
 }
 
 .retro-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    box-sizing: border-box;
     background-color: #8b956d;
     color: #1e2612;
     border: 2px solid #1e2612;
-    padding: 12px 30px;
+    padding: 12px 0;
     font-family: 'Courier New', Courier, monospace;
     font-size: 18px;
     font-weight: bold;
+    line-height: 1;
     cursor: pointer;
     border-radius: 4px;
     box-shadow: 0 4px 0 #1e2612;
     transition: all 0.05s ease;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+
+/* O texto "PAUSE" é maior que o glifo das setas: fonte menor para caber */
+.pause-btn {
+    font-size: 11px;
+    letter-spacing: 0.5px;
 }
 
 .retro-btn:active {
