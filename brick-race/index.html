@@ -3,44 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Brick Game - Racing Clone</title>
+    <title>Brick Game Race - Big Jeff Games</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <div class="brick-console">
-        <!-- Placar Compacto na Moldura Amarela -->
-        <div class="console-scoreboard">
-            <span>SCORE</span>
-            <div id="scoreDisplay">000000</div>
+    <div class="game-container">
+        <!-- Placar LCD -->
+        <div class="score-board">
+            <span>SCORE: </span><span id="scoreDisplay">000000</span>
         </div>
 
-        <div class="lcd-screen">
-            <!-- Tela de Boot / Softhouse Big Jeff Games -->
+        <!-- Tela Principal do Jogo -->
+        <div class="screen-wrapper">
+            <canvas id="gameCanvas" width="200" height="400"></canvas>
+            
+            <!-- Tela de Boot / Carregamento -->
             <div id="loadingScreen" class="overlay-screen">
-                <div class="softhouse-brand">
-                    <h2 class="studio-name">BIG JEFF GAMES</h2>
-                    <div class="loading-bar-container">
-                        <div id="loadingBar"></div>
-                    </div>
-                    <span class="loading-label">LOADING...</span>
+                <div class="brand-title">BIG JEFF GAMES</div>
+                <div class="loading-bar-container">
+                    <div id="loadingBar"></div>
                 </div>
             </div>
 
             <!-- Tela de Menu Inicial -->
             <div id="startScreen" class="overlay-screen" style="display: none;">
-                <h1 class="game-title">BRICK RACE</h1>
-                <p class="game-subtitle">9999 IN 1</p>
-                <button id="startButton" onclick="startGame()">INICIAR JOGO</button>
+                <div class="menu-title">RACE</div>
+                <button id="startButton" onclick="startGame()">JOGAR</button>
             </div>
-
-            <!-- Canvas do Jogo -->
-            <canvas id="gameCanvas" width="200" height="400"></canvas>
         </div>
-    </div>
 
-    <div class="controls-hint">
-        Use <span>&larr;</span> e <span>&rarr;</span> para desviar dos carrinhos!
+        <!-- Botões de Controle (Esquerda, Pause, Direita) -->
+        <div class="controls-container">
+            <button id="btnLeft" class="retro-btn">◀</button>
+            <button id="btnPause" class="retro-btn pause-btn">PAUSE</button>
+            <button id="btnRight" class="retro-btn">▶</button>
+        </div>
     </div>
 
     <script src="game.js"></script>

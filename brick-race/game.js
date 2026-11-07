@@ -9,22 +9,21 @@ const ROWS = 20;
 const BLOCK_SIZE = 20;
 
 // Estados do Jogo
-let gameState = 'LOADING'; // 'LOADING', 'START', 'PLAYING', 'CRASHED', 'GAMEOVER'
-let playerTrack = 1; 
+let gameState = 'LOADING'; 
+let playerX = 4; 
 let score = 0;
+let level = 1;
 let obstacles = [];
 let frameCount = 0;
-let speed = 12;
+let speed = 14; 
 let crashAnimationTimer = 0;
+let level8TransitionTriggered = false;
 
-// Contexto de Áudio Global para evitar travamentos
 let audioCtx = null;
-
-// Variáveis para o motor contínuo
 let motorOscillator = null;
 let motorGain = null;
 
-const tracks = [1, 4, 7];
+const obstacleCols = [1, 4, 7];
 
 const carShape = [
     [0, 1, 0],
@@ -33,7 +32,6 @@ const carShape = [
     [1, 0, 1]
 ];
 
-// Inicializa ou resume o AudioContext de forma segura
 function getAudioContext() {
     if (!audioCtx) {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -44,29 +42,31 @@ function getAudioContext() {
     return audioCtx;
 }
 
-// --- SIMULAÇÃO DE BOOT DA BIG JEFF GAMES (BARRA PROGRESSIVA) ---
+// --- SIMULAÇÃO DE BOOT DA BIG JEFF GAMES ---
 window.addEventListener('load', () => {
-    drawGrid(); // Desenha o fundo estático
-    
-    let progress = 0;
-    const bar = document.getElementById('loadingBar');
-    
-    const loadingInterval = setInterval(() => {
-        progress += 2;
-        if (bar) bar.style.width = progress + '%';
+    try {
+        drawGrid();
         
-        if (progress >= 100) {
-            clearInterval(loadingInterval);
-            setTimeout(() => {
-                loadingScreen.style.display = 'none';
-                startScreen.style.display = 'flex';
-                gameState = 'START';
-            }, 300);
-        }
-    }, 35);
+        let progress = 0;
+        const bar = document.getElementById('loadingBar');
+        
+        const loadingInterval = setInterval(() => {
+            progress += 5;
+            if (bar) bar.style.width = progress + '%';
+            
+            if (progress >= 100) {
+                clearInterval(loadingInterval);
+                setTimeout(() => {
+                    if (loadingScreen) loadingScreen.style.display = 'none';
+                    if (startScreen) startScreen.style.display = 'flex';
+                    gameState = 'START';
+                }, 200);
+            }
+        }, 25);
+    } catch (e) {}
 });
 
-// --- MELODIA DE INTRODUÇÃO / MENU ---
+// --- MELODIA DO MENU ---
 function playMenuMelody() {
     try {
         const ctxAudio = getAudioContext();
@@ -79,18 +79,15 @@ function playMenuMelody() {
         let delay = 0;
         melody.forEach((note) => {
             setTimeout(() => {
+                if (gameState !== 'START') return;
                 const osc = ctxAudio.createOscillator();
                 const gain = ctxAudio.createGain();
-
                 osc.type = 'square';
                 osc.frequency.value = note.freq;
-
                 gain.gain.setValueAtTime(0.08, ctxAudio.currentTime);
                 gain.gain.exponentialRampToValueAtTime(0.001, ctxAudio.currentTime + (note.dur / 1000));
-
                 osc.connect(gain);
                 gain.connect(ctxAudio.destination);
-
                 osc.start();
                 osc.stop(ctxAudio.currentTime + (note.dur / 1000));
             }, delay);
@@ -99,23 +96,32 @@ function playMenuMelody() {
     } catch (e) {}
 }
 
-// --- SOM CONTÍNUO DO MOTOR DO CARRO ---
+// --- MOTOR CONTÍNUO ---
 function startMotorSound() {
     try {
         const ctxAudio = getAudioContext();
+        if (motorOscillator) stopMotorSound();
+
         motorOscillator = ctxAudio.createOscillator();
         motorGain = ctxAudio.createGain();
 
         motorOscillator.type = 'sawtooth';
-        motorOscillator.frequency.setValueAtTime(60, ctxAudio.currentTime);
-
-        motorGain.gain.setValueAtTime(0.03, ctxAudio.currentTime);
+        motorOscillator.frequency.setValueAtTime(55, ctxAudio.currentTime);
+        motorGain.gain.setValueAtTime(0.025, ctxAudio.currentTime);
 
         motorOscillator.connect(motorGain);
         motorGain.connect(ctxAudio.destination);
-
         motorOscillator.start();
     } catch (e) {}
+}
+
+function updateMotorPitch() {
+    if (motorOscillator && audioCtx && audioCtx.state === 'running') {
+        try {
+            let baseFreq = 55 + (level * 8);
+            motorOscillator.frequency.setValueAtTime(baseFreq, audioCtx.currentTime);
+        } catch (e) {}
+    }
 }
 
 function stopMotorSound() {
@@ -128,66 +134,51 @@ function stopMotorSound() {
     } catch (e) {}
 }
 
-// --- SOM DE ULTRAPASSAGEM (BIP) ---
+// --- BIP DE ULTRAPASSAGEM ---
 function playPassSound() {
     try {
         const ctxAudio = getAudioContext();
         const osc = ctxAudio.createOscillator();
         const gain = ctxAudio.createGain();
-
         osc.type = 'square';
         osc.frequency.setValueAtTime(880, ctxAudio.currentTime);
+        gain.gain.setValueAtTime(0.03, ctxAudio.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctxAudio.currentTime + 0.05);
+        osc.connect(gain);
+        gain.connect(ctxAudio.destination);
+        osc.start();
+        osc.stop(ctxAudio.currentTime + 0.05);
+    } catch (e) {}
+}
 
-        gain.gain.setValueAtTime(0.05, ctxAudio.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctxAudio.currentTime + 0.08);
+// --- EXPLOSÃO ---
+function playExplosionSound() {
+    stopMotorSound(); 
+    try {
+        const ctxAudio = getAudioContext();
+        const osc = ctxAudio.createOscillator();
+        const gain = ctxAudio.createGain();
+        
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(300, ctxAudio.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(40, ctxAudio.currentTime + 0.25);
+
+        gain.gain.setValueAtTime(0.1, ctxAudio.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctxAudio.currentTime + 0.25);
 
         osc.connect(gain);
         gain.connect(ctxAudio.destination);
 
         osc.start();
-        osc.stop(ctxAudio.currentTime + 0.08);
+        osc.stop(ctxAudio.currentTime + 0.25);
     } catch (e) {}
 }
 
-// --- SOM DE EXPLOSÃO ESTILO "PRIL-RIL-RIL" (CURTO-CIRCUITO / IMPACTO RETRÔ) ---
-function playExplosionSound() {
-    stopMotorSound(); 
-    try {
-        const ctxAudio = getAudioContext();
-        
-        // Dispara um trem de pulsos rápidos gerando o efeito "pril-ril-ril"
-        const frequencies = [400, 150, 300, 100, 200, 80];
-        let delay = 0;
-
-        frequencies.forEach((freq, index) => {
-            setTimeout(() => {
-                const osc = ctxAudio.createOscillator();
-                const gain = ctxAudio.createGain();
-
-                osc.type = 'sawtooth'; // Onda áspera e metálica
-                osc.frequency.value = freq + (Math.random() * 50); // Variação rápida para dar o efeito "ril-ril"
-
-                gain.gain.setValueAtTime(0.12, ctxAudio.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.001, ctxAudio.currentTime + 0.05);
-
-                osc.connect(gain);
-                gain.connect(ctxAudio.destination);
-
-                osc.start();
-                osc.stop(ctxAudio.currentTime + 0.05);
-            }, delay);
-            
-            delay += 45; // Intervalo bem curtinho entre os pulsos para emular o chiado acelerado
-        });
-    } catch (e) {}
-}
-// Função para iniciar o jogo ao clicar no botão
 function startGame() {
     playMenuMelody(); 
-    
     setTimeout(() => {
         gameState = 'PLAYING';
-        startScreen.style.display = 'none';
+        if (startScreen) startScreen.style.display = 'none';
         resetGame();
         startMotorSound();
         update();
@@ -196,11 +187,15 @@ function startGame() {
 
 function resetGame() {
     score = 0;
-    playerTrack = 1;
+    level = 1;
+    speed = 14; 
+    playerX = 4; 
     obstacles = [];
     frameCount = 0;
     crashAnimationTimer = 0;
-    document.getElementById('scoreDisplay').innerText = '000000';
+    level8TransitionTriggered = false;
+    const scoreEl = document.getElementById('scoreDisplay');
+    if (scoreEl) scoreEl.innerText = '000000';
 }
 
 function drawBlock(col, row, active = true) {
@@ -221,14 +216,16 @@ function drawBlock(col, row, active = true) {
 }
 
 function drawGrid() {
+    if (!ctx) return;
     for (let r = 0; r < ROWS; r++) {
         for (let c = 0; c < COLS; c++) {
             drawBlock(c, r, false);
         }
     }
     
+    let faixaVelocidade = Math.max(1, Math.floor(speed / 2));
     for (let r = 0; r < ROWS; r++) {
-        if ((r + frameCount) % 4 < 2) {
+        if ((r + Math.floor(frameCount / faixaVelocidade)) % 4 < 2) {
             drawBlock(0, r, true);
             drawBlock(9, r, true);
         }
@@ -240,8 +237,9 @@ function drawCar(colStart, rowStart) {
         for (let c = 0; c < 3; c++) {
             if (carShape[r][c] === 1) {
                 const targetRow = rowStart + r;
-                if (targetRow >= 0 && targetRow < ROWS) {
-                    drawBlock(colStart + c, targetRow, true);
+                const targetCol = colStart + c;
+                if (targetRow >= 0 && targetRow < ROWS && targetCol >= 0 && targetCol < COLS) {
+                    drawBlock(targetCol, targetRow, true);
                 }
             }
         }
@@ -262,36 +260,122 @@ function drawExplosion(colStart, rowStart) {
     }
 }
 
-document.addEventListener('keydown', (e) => {
+// --- FUNÇÃO DE MOVIMENTO LATERAL COMPARTILHADA ---
+function moverEsquerda() {
     if (gameState !== 'PLAYING') return;
+    const minX = 1;
+    let passo = (level >= 8) ? 2 : 3;
+    playerX = Math.max(minX, playerX - passo);
+}
 
-    if (e.key === 'ArrowLeft' && playerTrack > 0) {
-        playerTrack--;
-    } else if (e.key === 'ArrowRight' && playerTrack < 2) {
-        playerTrack++;
+function moverDireita() {
+    if (gameState !== 'PLAYING') return;
+    const maxX = 7;
+    let passo = (level >= 8) ? 2 : 3;
+    playerX = Math.min(maxX, playerX + passo);
+}
+
+// --- CONTROLE POR TECLADO ---
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'p' || e.key === 'P') {
+        if (gameState === 'PLAYING') {
+            gameState = 'PAUSED';
+            if (motorGain && audioCtx) motorGain.gain.setValueAtTime(0, audioCtx.currentTime);
+        } else if (gameState === 'PAUSED') {
+            gameState = 'PLAYING';
+            if (motorGain && audioCtx) motorGain.gain.setValueAtTime(0.025, audioCtx.currentTime);
+            update();
+        }
+        return;
+    }
+
+    if (e.key === 'ArrowLeft') {
+        moverEsquerda();
+    } else if (e.key === 'ArrowRight') {
+        moverDireita();
+    }
+});
+
+// --- VÍNCULO DOS BOTÕES DA TELA ---
+window.addEventListener('DOMContentLoaded', () => {
+    const btnLeft = document.getElementById('btnLeft');
+    const btnRight = document.getElementById('btnRight');
+
+    if (btnLeft) {
+        btnLeft.addEventListener('click', moverEsquerda);
+        btnLeft.addEventListener('touchstart', (e) => { e.preventDefault(); moverEsquerda(); });
+    }
+
+    if (btnRight) {
+        btnRight.addEventListener('click', moverDireita);
+        btnRight.addEventListener('touchstart', (e) => { e.preventDefault(); moverDireita(); });
     }
 });
 
 function update() {
-    if (gameState === 'GAMEOVER') return;
+    if (gameState === 'GAMEOVER' || gameState === 'PAUSED') return;
 
     frameCount++;
 
     if (gameState === 'PLAYING') {
-        if (frameCount % 85 === 0) {
-            const randomTrack = Math.floor(Math.random() * 3);
+        let previousLevel = level;
+
+        if (score >= 900) {
+            level = 9;
+            speed = 3;  
+        } else if (score >= 750) {
+            level = 8;
+            speed = 4;  
+        } else if (score >= 600) {
+            level = 7;
+            speed = 4;  
+        } else if (score >= 450) {
+            level = 6;
+            speed = 5;  
+        } else if (score >= 320) {
+            level = 5;
+            speed = 6;
+        } else if (score >= 200) {
+            level = 4;
+            speed = 8;
+        } else if (score >= 100) {
+            level = 3;
+            speed = 10;
+        } else if (score >= 40) {
+            level = 2;
+            speed = 12;
+        } else {
+            level = 1;
+            speed = 14; 
+        }
+
+        if (level === 8 && previousLevel < 8 && !level8TransitionTriggered) {
+            level8TransitionTriggered = true;
+            obstacles = [];
+            frameCount += 30;
+        }
+
+        updateMotorPitch();
+
+        let freqObstaculo = Math.max(32, 80 - (level * 5));
+        if (frameCount % freqObstaculo === 0) {
+            const randomTrackIndex = Math.floor(Math.random() * 3);
+            const chosenCol = obstacleCols[randomTrackIndex];
             const ultimoObstaculo = obstacles[obstacles.length - 1];
             
-            if (!ultimoObstaculo || ultimoObstaculo.row > 6) {
-                obstacles.push({ track: randomTrack, row: -4 });
+            let distanciaMinima = 5; 
+            
+            if (!ultimoObstaculo || ultimoObstaculo.row > distanciaMinima) {
+                obstacles.push({ col: chosenCol, row: -4 });
                 
-                if (Math.random() < 0.3) {
-                    let segundaPista;
+                let chanceDuplo = 0.2 + (level * 0.03);
+                if (Math.random() < chanceDuplo) {
+                    let segundaPistaIndex;
                     do {
-                        segundaPista = Math.floor(Math.random() * 3);
-                    } while (segundaPista === randomTrack);
+                        segundaPistaIndex = Math.floor(Math.random() * 3);
+                    } while (segundaPistaIndex === randomTrackIndex);
                     
-                    obstacles.push({ track: segundaPista, row: -4 });
+                    obstacles.push({ col: obstacleCols[segundaPistaIndex], row: -4 });
                 }
             }
         }
@@ -308,12 +392,18 @@ function update() {
             }
         }
 
-        const playerCol = tracks[playerTrack];
         const playerRow = 16;
 
         for (let obs of obstacles) {
-            const obsCol = tracks[obs.track];
-            if (Math.abs(playerCol - obsCol) < 3 && Math.abs(playerRow - obs.row) < 4) {
+            const playerLeft = playerX;
+            const playerRight = playerX + 2;
+            const obsLeft = obs.col;
+            const obsRight = obs.col + 2;
+
+            const overlapX = playerLeft <= obsRight && obsLeft <= playerRight;
+            const overlapY = Math.abs(playerRow - obs.row) < 4;
+
+            if (overlapX && overlapY) {
                 gameState = 'CRASHED';
                 crashAnimationTimer = 0;
                 playExplosionSound();
@@ -324,28 +414,41 @@ function update() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     drawGrid();
 
-    const playerCol = tracks[playerTrack];
     const playerRow = 16;
 
     for (let obs of obstacles) {
-        drawCar(tracks[obs.track], obs.row);
+        drawCar(obs.col, obs.row);
     }
 
     if (gameState === 'CRASHED') {
         crashAnimationTimer++;
-        drawExplosion(playerCol, playerRow);
+        drawExplosion(playerX, playerRow);
 
         if (crashAnimationTimer > 25) {
             gameState = 'GAMEOVER';
         }
     } else if (gameState === 'PLAYING') {
-        drawCar(playerCol, playerRow);
+        drawCar(playerX, playerRow);
+    } else if (gameState === 'PAUSED') {
+        ctx.fillStyle = 'rgba(30, 38, 18, 0.85)';
+        ctx.fillRect(20, 150, 160, 60);
+        
+        ctx.strokeStyle = '#8b956d';
+        ctx.strokeRect(22, 152, 156, 56);
+
+        ctx.fillStyle = '#8b956d';
+        ctx.font = 'bold 16px Courier New';
+        ctx.fillText("PAUSE", 72, 175);
+        
+        ctx.font = '9px Courier New';
+        ctx.fillText("APERTE P PARA VOLTAR", 32, 195);
     }
 
-    document.getElementById('scoreDisplay').innerText = String(score).padStart(6, '0');
+    const scoreDisplay = document.getElementById('scoreDisplay');
+    if (scoreDisplay) scoreDisplay.innerText = String(score).padStart(6, '0');
 
     if (gameState === 'GAMEOVER') {
-        stopMotorSound(); // Garante que o motor desliga no game over
+        stopMotorSound();
 
         ctx.fillStyle = '#1e2612';
         ctx.fillRect(20, 150, 160, 60);
@@ -361,8 +464,9 @@ function update() {
         ctx.fillText("CLIQUE EM JOGAR", 45, 195);
 
         setTimeout(() => {
-            startScreen.style.display = 'flex';
-            document.getElementById('startButton').innerText = 'JOGAR NOVAMENTE';
+            if (startScreen) startScreen.style.display = 'flex';
+            const startBtn = document.getElementById('startButton');
+            if (startBtn) startBtn.innerText = 'JOGAR NOVAMENTE';
         }, 1000);
     } else {
         requestAnimationFrame(update);

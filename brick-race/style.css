@@ -1,101 +1,77 @@
 body {
-    background-color: #2b3520;
-    font-family: 'Courier New', Courier, monospace;
+    background-color: #2b3324;
     display: flex;
-    flex-direction: column;
-    align-items: center;
     justify-content: center;
+    align-items: center;
     height: 100vh;
     margin: 0;
+    font-family: 'Courier New', Courier, monospace;
 }
 
-/* Console Portátil */
-.brick-console {
-    background-color: #f0cc00;
-    border: 4px solid #b89d00;
-    border-radius: 15px;
-    padding: 20px 15px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+.game-container {
+    background-color: #9ead86;
+    border: 6px solid #1e2612;
+    border-radius: 12px;
+    padding: 15px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
     display: flex;
     flex-direction: column;
     align-items: center;
 }
 
-/* Placar Compacto na Moldura Amarela */
-.console-scoreboard {
+.score-board {
     background-color: #1e2612;
-    color: #f0cc00;
-    width: 100%;
-    padding: 4px 8px;
-    border-radius: 4px;
-    margin-bottom: 8px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border: 2px inset #ccad00;
-    box-sizing: border-box;
-}
-
-.console-scoreboard span {
-    font-size: 11px;
-    letter-spacing: 1px;
-    opacity: 0.8;
-}
-
-#scoreDisplay {
-    font-size: 16px;
+    color: #8b956d;
+    font-size: 18px;
     font-weight: bold;
+    padding: 6px 12px;
+    border-radius: 4px;
+    margin-bottom: 12px;
     letter-spacing: 2px;
+    width: 176px;
+    text-align: center;
 }
 
-/* Tela LCD */
-.lcd-screen {
-    background-color: #98a47b;
+.screen-wrapper {
+    position: relative;
     width: 200px;
     height: 400px;
-    border: 4px inset #4a5433;
-    position: relative;
-    overflow: hidden;
+    border: 3px solid #1e2612;
+    background-color: #9ead86; /* Cor LCD clássica */
 }
 
-/* Telas Sobrepostas (Loading e Menu) */
+canvas {
+    display: block;
+}
+
+/* Telas de Overlay (Loading e Menu Inicial) */
 .overlay-screen {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: #98a47b;
+    background-color: #9ead86;
     display: flex;
     flex-direction: column;
-    align-items: center;
     justify-content: center;
+    align-items: center;
     z-index: 10;
 }
 
-/* Estilo do Boot da Softhouse */
-.softhouse-brand {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-}
-
-.studio-name {
-    font-size: 16px;
+.brand-title {
     color: #1e2612;
-    letter-spacing: 2px;
-    margin-bottom: 15px;
+    font-size: 16px;
     font-weight: bold;
-    text-align: center;
+    margin-bottom: 20px;
+    letter-spacing: 1px;
 }
 
 .loading-bar-container {
-    width: 120px;
-    height: 10px;
+    width: 140px;
+    height: 12px;
     border: 2px solid #1e2612;
     padding: 1px;
-    margin-bottom: 8px;
 }
 
 #loadingBar {
@@ -105,59 +81,56 @@ body {
     transition: width 0.05s linear;
 }
 
-.loading-label {
-    font-size: 10px;
+.menu-title {
     color: #1e2612;
-    letter-spacing: 2px;
-}
-
-/* Estilos do Menu */
-.game-title {
-    font-size: 22px;
-    color: #1e2612;
-    margin-bottom: 5px;
-    letter-spacing: 3px;
-    text-align: center;
-}
-
-.game-subtitle {
-    font-size: 12px;
-    color: #1e2612;
+    font-size: 36px;
+    font-weight: bold;
     margin-bottom: 25px;
-    letter-spacing: 2px;
+    letter-spacing: 4px;
 }
 
 #startButton {
     background-color: #1e2612;
-    color: #f0cc00;
+    color: #8b956d;
     border: none;
-    padding: 10px 15px;
+    padding: 10px 20px;
     font-family: 'Courier New', Courier, monospace;
+    font-size: 14px;
     font-weight: bold;
-    font-size: 12px;
     cursor: pointer;
     border-radius: 4px;
-    letter-spacing: 1px;
-    box-shadow: 0 4px 0 #0d1207;
+    box-shadow: 0 3px 0 #4a5831;
 }
 
 #startButton:active {
     transform: translateY(2px);
-    box-shadow: 0 2px 0 #0d1207;
+    box-shadow: 0 1px 0 #4a5831;
 }
 
-/* Instruções abaixo do console */
-.controls-hint {
+/* Botões de Direção Inferiores */
+.controls-container {
+    display: flex;
+    justify-content: space-between;
     margin-top: 15px;
-    color: #f0cc00;
-    font-size: 13px;
-    text-align: center;
+    width: 200px;
+    padding: 0 5px;
 }
 
-.controls-hint span {
-    background-color: #f0cc00;
+.retro-btn {
+    background-color: #8b956d;
     color: #1e2612;
-    padding: 2px 6px;
-    border-radius: 3px;
+    border: 2px solid #1e2612;
+    padding: 12px 30px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 18px;
     font-weight: bold;
+    cursor: pointer;
+    border-radius: 4px;
+    box-shadow: 0 4px 0 #1e2612;
+    transition: all 0.05s ease;
+}
+
+.retro-btn:active {
+    transform: translateY(3px);
+    box-shadow: 0 1px 0 #1e2612;
 }
