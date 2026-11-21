@@ -6,7 +6,7 @@ Este arquivo é o diário de bordo do projeto. O `README.md` explica **o jogo**;
 
 ## Estado atual — 21/11/2026
 
-- **Onde paramos:** documentação. O último código entregue foi o commit `53a7b45` (07/11), com pause em overlay HTML, confirmação de reinício e retorno à tela inicial.
+- **Onde paramos:** jogo publicado no GitHub Pages e documentação atualizada. Último código entregue: commit `53a7b45` (07/11), com pause em overlay HTML, confirmação de reinício e retorno à tela inicial. URL: `https://alvjeff.github.io/brickgame-race-clone/brick-race/`.
 - **O que já funciona:** boot com barra de carregamento, menu LCD, placar com recorde persistente, 9 níveis, áudio, colisão, explosão, pause e restart.
 - **O que ainda não existe:** build, dependências, testes automatizados e servidor próprio. Não há Node instalado neste ambiente de desenvolvimento, então a validação de sintaxe/execução é feita no navegador.
 - **Gargalos conhecidos (ainda não corrigidos):**
@@ -14,7 +14,23 @@ Este arquivo é o diário de bordo do projeto. O `README.md` explica **o jogo**;
   2. A colisão usa uma caixa envolvente 3×4 cheia, embora `carShape` tenha células vazias — pode acontecer uma batida "invisível" quando os desenhos não se tocam.
   3. `playMenuMelody()` é chamada em `startGame()`, mas a transição de 1,2 s corta a melodia, que dura cerca de 3 s.
   4. Ao entrar no nível 8, `obstacles = []` limpa a pista de forma abrupta.
-- **Próximos passos sugeridos:** (1) consolidar esta documentação; (2) corrigir os gargalos 1 a 3; (3) cobrir as transições de estado com testes.
+- **Próximos passos sugeridos:** (1) documentação consolidada (concluído em 21/11); (2) corrigir os gargalos 1 a 3; (3) cobrir as transições de estado com testes; (4) opcional: URL sem `/brick-race/` via GitHub Actions.
+
+## Insight do dia — 21/11/2026
+
+Hoje tive a ideia de pedir ao agente para melhorar a nossa forma de documentar o projeto, justamente para que o registro sirva de memória — para mim e para outras pessoas que usarem o repositório. Dessa conversa nasceram as três camadas que existem hoje: `README.md` para quem quer conhecer o jogo, `DEVLOG.md` para quem precisa retomar o trabalho e `AGENTS.md` para o agente que abre uma nova sessão.
+
+Também defini duas regras de convivência com o agente: alterações em arquivos devem ser descritas e confirmadas antes de executadas, e os commits são feitos por mim. Estão registradas em `AGENTS.md` para que a próxima sessão já comece sabendo disso.
+
+## Publicação no GitHub Pages — 21/11/2026
+
+O jogo está no ar em `https://alvjeff.github.io/brickgame-race-clone/brick-race/`.
+
+**Conceito:** o GitHub Pages serve arquivos estáticos de uma branch. O seletor de pastas da aba Pages não listou a subpasta `brick-race`, então a origem ficou em `/(root)` da branch `main`. O `index.html` continua na subpasta e passou a ser acessível pelo caminho `/brick-race/`. Como ele referencia `style.css` e `game.js` por caminhos relativos, o navegador resolve os arquivos dentro dessa mesma pasta e nada quebra. A URL curta da raiz não tem `index.html` e retorna 404 — o endereço correto é o completo.
+
+Validação: acessado com sucesso no celular em retrato. Os botões de toque (`touchstart` com `preventDefault`) e o áudio liberado ao tocar em **JOGAR** funcionaram. Em paisagem o console pode ficar cortado porque o `body` usa `height: 100vh`.
+
+Alternativa guardada para o futuro: publicar via GitHub Actions com `path: ./brick-race`, o que permitiria uma URL sem o trecho `/brick-race/`.
 
 ## Linha do tempo
 
@@ -33,7 +49,7 @@ Este arquivo é o diário de bordo do projeto. O `README.md` explica **o jogo**;
 | 07/11 | `caea7ee` | Recorde persistente (HI) no placar |
 | 07/11 | `f63f61d` | Melhoria da tela inicial |
 | 07/11 | `53a7b45` | Pause e retorno à tela inicial |
-| 21/11 | — | Documentação (README, Devlog e estado no AGENTS.md) |
+| 21/11 | — | Documentação (README, Devlog e AGENTS.md) e publicação no GitHub Pages |
 
 ## Decisões e gargalos
 

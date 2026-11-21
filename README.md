@@ -2,9 +2,19 @@
 
 Recriação em navegador do jogo de corrida do clássico **Brick Game** (Big Jeff Games), com a estética LCD verde do portátil original. Projeto feito em HTML, CSS e JavaScript puro — sem dependências, build ou servidor.
 
+## Jogar online
+
+Publicado no GitHub Pages: **https://alvjeff.github.io/brickgame-race-clone/brick-race/**
+
+O site é servido com origem `/(root)` da branch `main`, porque a caixa de seleção de pastas do Pages não listou a subpasta `brick-race`. O `index.html` continua nessa subpasta e é acessível pelo caminho `/brick-race/`; como o HTML usa caminhos relativos (`style.css`, `game.js`), os arquivos são resolvidos dentro da própria pasta. A URL da raiz não tem `index.html` e retorna 404 — use o endereço completo.
+
+Testado no celular em retrato: controles por toque funcionam e o áudio é liberado ao tocar em **JOGAR**.
+
+Para jogar localmente, abra `brick-race/index.html` no navegador.
+
 ## Como jogar
 
-Abra `brick-race/index.html` no navegador. O áudio só é liberado após o primeiro clique, por política de autoplay dos navegadores.
+O áudio só é liberado após o primeiro clique ou toque, por política de autoplay dos navegadores.
 
 | Ação | Teclado | Toque |
 | --- | --- | --- |
