@@ -25,6 +25,15 @@ O áudio só é liberado após o primeiro clique ou toque, por política de auto
 
 Desvie dos carros. Cada obstáculo que passa vale **10 pontos**. O recorde (`HI`) fica salvo no `localStorage` do navegador. Dentro do menu de pause, o botão de reiniciar abre uma confirmação antes de voltar à tela inicial.
 
+## Modo de teste (desenvolvimento)
+
+Para pular direto a uma categoria sem jogar desde o começo:
+
+- na URL: `.../brick-race/?cat=1`, `?cat=2`, `?cat=3` ou `?cat=4`;
+- no teclado: aperte `1`, `2`, `3` ou `4` na tela inicial.
+
+O score usado para entrar na categoria não altera o `HI`, e o modo de teste é desligado ao voltar ao menu. As quatro categorias e a distribuição de velocidade estão em [`DEVLOG.md`](DEVLOG.md).
+
 ## Estrutura do repositório
 
 | Arquivo | Função |
@@ -39,9 +48,9 @@ Desvie dos carros. Cada obstáculo que passa vale **10 pontos**. O recorde (`HI`
 
 - **Grade lógica:** 10 colunas × 20 linhas de blocos de 20 px. O carro ocupa 3×4 blocos.
 - **Estados:** `LOADING → START → PLAYING → CRASHED → GAMEOVER → START`. `PAUSED` é um estado lateral que congela o loop e é resolvido por `P` ou pelo botão.
-- **Obstáculos:** surgem nas colunas 1, 4 e 7, com distância mínima entre si; a chance de surgirem em dupla cresce com o nível.
-- **Níveis:** 1 a 9 controlam a frequência dos obstáculos. A partir do nível 8 o controle lateral fica fino (1 coluna por vez em vez de 3).
-- **Velocidade:** duas rampas. A segunda começa ao entrar no nível 8, quando a pista é limpa e a contagem de pontos para a rampa reinicia (`speedPhaseStartScore`).
+- **Obstáculos:** surgem nas colunas ativas da categoria (`1, 4` ou `1, 4, 7`), com distância mínima entre si. O spawn em dupla só acontece nas categorias de três faixas.
+- **Categorias:** quatro faixas de dificuldade derivadas do score. Nas categorias 1 e 3, obstáculos **e jogador** usam os 6 blocos centrais (colunas 2 a 7, com spawn em 2 e 5); nas categorias 2 e 4, usam as colunas 1, 4 e 7. O controle lateral fica fino (1 coluna por toque) a partir da categoria 3.
+- **Velocidade:** duas rampas. A segunda começa aos 450 pontos (categoria 3): a pista é limpa e velocidade **e** frequência de obstáculos reiniciam. A categoria 4 continua essa rampa, sem novo reset.
 - **Áudio:** gerado na hora com a Web Audio API (ondas quadradas para melodia/bip, serra para motor/explosão). Não existem arquivos de som.
 
 ## Estado do projeto

@@ -12,9 +12,20 @@ const BLOCK_SIZE = 20;
 
 // Dificuldade
 const INITIAL_SPEED = 14;          // 1 linha descida a cada N frames (menor = mais rápido)
-const FINE_CONTROL_LEVEL = 8;      // nível em que o controle lateral fica fino
-const NORMAL_LATERAL_STEP = 3;     // deslocamento lateral antes do nível 8
-const FINE_LATERAL_STEP = 1;       // deslocamento lateral a partir do nível 8
+const FINE_CONTROL_CATEGORY = 3;   // categoria em que o controle lateral fica fino
+const NORMAL_LATERAL_STEP = 3;     // deslocamento lateral antes da categoria 3
+const FINE_LATERAL_STEP = 1;       // deslocamento lateral a partir da categoria 3
+
+// Faixas: as categorias 1 e 3 usam os 6 blocos centrais (colunas 2 a 7),
+// deixando uma coluna livre de cada lado além das bordas 0 e 9.
+const THREE_LANE_COLS = [1, 4, 7];
+const TWO_LANE_COLS = [2, 5];
+
+// A 2ª rampa de velocidade começa nesta pontuação (entrada na categoria 3)
+const SPEED_RESET_SCORE = 450;
+
+// Pontuação inicial de cada categoria no modo de teste (?cat= / teclas 1-4)
+const TEST_START_SCORES = { 1: 0, 2: 100, 3: SPEED_RESET_SCORE, 4: 650 };
 
 // Recorde persistente (mesmo esquema do jogo do dinossauro do Chrome)
 const HIGH_SCORE_KEY = 'brickRaceHighScore';
@@ -39,20 +50,31 @@ let gameState = 'LOADING';
 let playerX = 4; 
 let score = 0;
 let highScore = loadHighScore();
-let level = 1;
+let category = 1;
 let obstacles = [];
 let frameCount = 0;
 let speed = INITIAL_SPEED; 
 let crashAnimationTimer = 0;
-let level8TransitionTriggered = false;
+let category3TransitionTriggered = false;
 let speedPhaseStartScore = null;   // pontuação em que a 2ª rampa de velocidade começou
 let startPending = false;          // evita iniciar duas partidas com clique/Enter repetido
+let startCategory = null;          // categoria escolhida no modo de teste
+let testMode = false;              // no teste o HI não é atualizado
+
+// Atalho por URL: ?cat=3 inicia já na categoria 3, sem jogar desde o começo.
+(function readTestCategoryFromUrl() {
+    try {
+        const requested = parseInt(new URLSearchParams(window.location.search).get('cat'), 10);
+        if (requested >= 1 && requested <= 4) {
+            startCategory = requested;
+            testMode = true;
+        }
+    } catch (e) {}
+})();
 
 let audioCtx = null;
 let motorOscillator = null;
 let motorGain = null;
-
-const obstacleCols = [1, 4, 7];
 
 const carShape = [
     [0, 1, 0],
@@ -239,14 +261,15 @@ function startGame() {
 
 function resetGame() {
     score = 0;
-    level = 1;
+    category = 1;
     speed = INITIAL_SPEED; 
     playerX = 4; 
     obstacles = [];
     frameCount = 0;
     crashAnimationTimer = 0;
-    level8TransitionTriggered = false;
+    category3TransitionTriggered = false;
     speedPhaseStartScore = null;
+    applyTestCategory();
     updateScoreDisplay();
 }
 
@@ -269,6 +292,52 @@ function getSpeedForScore(points) {
     if (points >= 100) return 10;
     if (points >= 40) return 12;
     return INITIAL_SPEED;
+}
+
+// Quatro categorias: 1 e 3 com duas faixas; 2 e 4 com três.
+function getCategory(points) {
+    if (points >= 650) return 4;
+    if (points >= SPEED_RESET_SCORE) return 3;
+    if (points >= 100) return 2;
+    return 1;
+}
+
+function getActiveCols(cat) {
+    return (cat === 1 || cat === 3) ? TWO_LANE_COLS : THREE_LANE_COLS;
+}
+
+// A frequência acompanha os mesmos marcos da velocidade e reinicia junto
+// com a 2ª rampa, para que a categoria 3 seja realmente um respiro.
+function getFrequencyForScore(points) {
+    if (points >= 900) return 35;
+    if (points >= 600) return 40;
+    if (points >= 450) return 45;
+    if (points >= 320) return 50;
+    if (points >= 200) return 55;
+    if (points >= 100) return 60;
+    if (points >= 40) return 70;
+    return 75;
+}
+
+// 1ª volta usa o score absoluto; 2ª volta usa o score relativo ao reset.
+function getPhaseScore(points) {
+    return speedPhaseStartScore !== null ? points - speedPhaseStartScore : points;
+}
+
+// Modo de teste: semeia o score para começar dentro da categoria pedida.
+function applyTestCategory() {
+    if (!testMode || startCategory === null) return;
+    score = TEST_START_SCORES[startCategory] ?? 0;
+    if (startCategory >= 3) {
+        // Já passamos pela transição: não pode disparar um segundo reset.
+        speedPhaseStartScore = SPEED_RESET_SCORE;
+        category3TransitionTriggered = true;
+    }
+}
+
+function clearTestMode() {
+    testMode = false;
+    startCategory = null;
 }
 
 function drawBlock(col, row, active = true) {
@@ -377,20 +446,29 @@ function drawExplosion(colStart, rowStart) {
 }
 
 // --- FUNÇÃO DE MOVIMENTO LATERAL COMPARTILHADA ---
-// A partir do nível 8 o carro anda de 1 em 1 coluna (controle fino).
+// A partir da categoria 3 o carro anda de 1 em 1 coluna (controle fino).
 function getLateralStep() {
-    return (level >= FINE_CONTROL_LEVEL) ? FINE_LATERAL_STEP : NORMAL_LATERAL_STEP;
+    return (category >= FINE_CONTROL_CATEGORY) ? FINE_LATERAL_STEP : NORMAL_LATERAL_STEP;
+}
+
+// Nas categorias de duas faixas o jogador acompanha as colunas centrais 2 a 5.
+function getMinPlayerX() {
+    return (category === 1 || category === 3) ? 2 : 1;
+}
+
+function getMaxPlayerX() {
+    return (category === 1 || category === 3) ? 5 : 7;
 }
 
 function moverEsquerda() {
     if (gameState !== 'PLAYING') return;
-    const minX = 1;
+    const minX = getMinPlayerX();
     playerX = Math.max(minX, playerX - getLateralStep());
 }
 
 function moverDireita() {
     if (gameState !== 'PLAYING') return;
-    const maxX = 7;
+    const maxX = getMaxPlayerX();
     playerX = Math.min(maxX, playerX + getLateralStep());
 }
 
@@ -443,6 +521,7 @@ function restartGame() {
 
     hidePauseOverlay();
     stopMotorSound();
+    clearTestMode();
     resetGame();
     gameState = 'START';
 
@@ -460,6 +539,15 @@ document.addEventListener('keydown', (e) => {
     // Enter/Espaço iniciam a partida no menu (como o START de um portátil retrô).
     if (gameState === 'START' && (e.key === 'Enter' || e.key === ' ')) {
         e.preventDefault();
+        startGame();
+        return;
+    }
+
+    // Teclas 1-4 no menu: atalho de teste para pular direto a uma categoria.
+    if (gameState === 'START' && ['1', '2', '3', '4'].includes(e.key)) {
+        e.preventDefault();
+        startCategory = Number(e.key);
+        testMode = true;
         startGame();
         return;
     }
@@ -528,49 +616,35 @@ function update() {
     frameCount++;
 
     if (gameState === 'PLAYING') {
-        // Nível define a frequência/agressividade dos obstáculos.
-        if (score >= 900) {
-            level = 9;
-        } else if (score >= 750) {
-            level = 8;
-        } else if (score >= 600) {
-            level = 7;
-        } else if (score >= 450) {
-            level = 6;
-        } else if (score >= 320) {
-            level = 5;
-        } else if (score >= 200) {
-            level = 4;
-        } else if (score >= 100) {
-            level = 3;
-        } else if (score >= 40) {
-            level = 2;
-        } else {
-            level = 1;
-        }
+        // A categoria define faixas, controle lateral e agressividade da pista.
+        category = getCategory(score);
 
-        // Entrada no nível de controle fino: limpa a pista e inicia a 2ª rampa
-        // de velocidade do zero, sem perder o passo lateral detalhado.
-        if (level >= FINE_CONTROL_LEVEL && !level8TransitionTriggered) {
-            level8TransitionTriggered = true;
+        // Ao trocar de categoria, o carro pode ter ficado fora dos novos
+        // limites (ex.: vinha da coluna 1 ou 7): traz ele de volta à pista.
+        const minX = getMinPlayerX();
+        const maxX = getMaxPlayerX();
+        if (playerX < minX) playerX = minX;
+        if (playerX > maxX) playerX = maxX;
+
+        // Entrada na categoria 3: limpa a pista e inicia a 2ª rampa do zero.
+        if (category >= 3 && !category3TransitionTriggered) {
+            category3TransitionTriggered = true;
             speedPhaseStartScore = score;
             obstacles = [];
             frameCount += 30;
         }
 
         // 1ª volta: score absoluto. 2ª volta: score relativo ao reset.
-        if (speedPhaseStartScore !== null) {
-            speed = getSpeedForScore(score - speedPhaseStartScore);
-        } else {
-            speed = getSpeedForScore(score);
-        }
+        const phaseScore = getPhaseScore(score);
+        speed = getSpeedForScore(phaseScore);
 
         updateMotorPitch();
 
-        let freqObstaculo = Math.max(32, 80 - (level * 5));
+        const activeCols = getActiveCols(category);
+        let freqObstaculo = getFrequencyForScore(phaseScore);
         if (frameCount % freqObstaculo === 0) {
-            const randomTrackIndex = Math.floor(Math.random() * 3);
-            const chosenCol = obstacleCols[randomTrackIndex];
+            const randomTrackIndex = Math.floor(Math.random() * activeCols.length);
+            const chosenCol = activeCols[randomTrackIndex];
             const ultimoObstaculo = obstacles[obstacles.length - 1];
             
             let distanciaMinima = 5; 
@@ -578,14 +652,16 @@ function update() {
             if (!ultimoObstaculo || ultimoObstaculo.row > distanciaMinima) {
                 obstacles.push({ col: chosenCol, row: -4 });
                 
-                let chanceDuplo = 0.2 + (level * 0.03);
-                if (Math.random() < chanceDuplo) {
+                let chanceDuplo = 0.2 + (category * 0.03);
+                // Com duas faixas e o jogador limitado a elas, um par ocuparia
+                // tudo e não haveria escape. Duplo só nas categorias de 3 faixas.
+                if (activeCols.length === 3 && Math.random() < chanceDuplo) {
                     let segundaPistaIndex;
                     do {
-                        segundaPistaIndex = Math.floor(Math.random() * 3);
+                        segundaPistaIndex = Math.floor(Math.random() * activeCols.length);
                     } while (segundaPistaIndex === randomTrackIndex);
                     
-                    obstacles.push({ col: obstacleCols[segundaPistaIndex], row: -4 });
+                    obstacles.push({ col: activeCols[segundaPistaIndex], row: -4 });
                 }
             }
         }
@@ -643,7 +719,8 @@ function update() {
 
     // Recorde ao vivo: assim que a pontuação supera o HI, ele já é atualizado
     // (e persistido) sem esperar o game over.
-    if (score > highScore) {
+    // No modo de teste o score semeado não pode virar recorde.
+    if (!testMode && score > highScore) {
         highScore = score;
         saveHighScore(highScore);
     }
@@ -666,6 +743,7 @@ function update() {
         ctx.fillText("CLIQUE EM JOGAR", 45, 195);
 
         setTimeout(() => {
+            clearTestMode();
             gameState = 'START';
             if (startScreen) startScreen.style.display = 'flex';
             const startBtn = document.getElementById('startButton');
